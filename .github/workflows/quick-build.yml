@@ -1,0 +1,47 @@
+name: Quick Build APK
+
+# 简化版构建，更快速
+on:
+  push:
+    branches: [ main, master, develop ]
+  workflow_dispatch:
+
+jobs:
+  quick-build:
+    name: Quick Build APK
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.16.0'
+        channel: 'stable'
+        cache: true
+
+    - name: Get dependencies
+      run: flutter pub get
+
+    - name: Build APK (Universal)
+      run: flutter build apk --release
+
+    - name: Rename APK
+      run: |
+        cd build/app/outputs/flutter-apk/
+        mv app-release.apk FlashMemo-v${{ github.run_number }}.apk
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: FlashMemo-APK
+        path: build/app/outputs/flutter-apk/FlashMemo-v${{ github.run_number }}.apk
+        retention-days: 7
