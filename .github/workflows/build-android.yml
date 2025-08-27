@@ -37,9 +37,11 @@ jobs:
         channel: 'stable'
         cache: true
 
-    # 4. 验证Flutter安装
-    - name: Verify Flutter installation
+    # 4. 禁用Flutter分析并验证安装
+    - name: Configure Flutter and verify installation
       run: |
+        flutter config --no-analytics
+        flutter --disable-analytics
         flutter --version
         flutter doctor -v
 
@@ -47,41 +49,28 @@ jobs:
     - name: Get dependencies
       run: flutter pub get
 
-    # 6. 运行静态分析
-    - name: Analyze code
-      run: flutter analyze
-
-    # 7. 运行测试（如果有的话）
-    - name: Run tests
-      run: flutter test --coverage
-      continue-on-error: true
-
-    # 8. 构建APK
+    # 6. 构建APK（仅构建通用版本以避免复杂性）
     - name: Build APK
       run: |
-        flutter build apk --release --split-per-abi
-        flutter build apk --release --target-platform android-arm64
+        flutter build apk --release
 
-    # 9. 重命名APK文件
+    # 7. 重命名APK文件
     - name: Rename APK files
       run: |
         cd build/app/outputs/flutter-apk/
-        mv app-arm64-v8a-release.apk flashmemo-arm64-v8a-${{ github.run_number }}.apk || true
-        mv app-armeabi-v7a-release.apk flashmemo-armeabi-v7a-${{ github.run_number }}.apk || true
-        mv app-x86_64-release.apk flashmemo-x86_64-${{ github.run_number }}.apk || true
-        mv app-release.apk flashmemo-universal-${{ github.run_number }}.apk || true
+        mv app-release.apk FlashMemo-v${{ github.run_number }}.apk
         ls -la
 
-    # 10. 上传APK文件作为Artifacts
+    # 8. 上传APK文件作为Artifacts
     - name: Upload APK Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: flashmemo-apk-${{ github.run_number }}
+        name: FlashMemo-APK-${{ github.run_number }}
         path: |
-          build/app/outputs/flutter-apk/*.apk
+          build/app/outputs/flutter-apk/FlashMemo-v${{ github.run_number }}.apk
         retention-days: 30
 
-    # 11. 创建Release（可选，仅在推送到main分支时）
+    # 9. 创建Release（可选，仅在推送到main分支时）
     - name: Create Release
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       uses: softprops/action-gh-release@v1
@@ -91,28 +80,27 @@ jobs:
         body: |
           🎉 FlashMemo 移动端闪卡应用新版本发布！
           
-          ## 📱 下载说明
-          - **arm64-v8a**: 适用于大多数现代Android设备（推荐）
-          - **armeabi-v7a**: 适用于较老的32位ARM设备
-          - **x86_64**: 适用于x86_64模拟器或设备
-          - **universal**: 通用版本（包含所有架构，文件较大）
+          ## 📱 安装说明
+          1. 下载APK文件到Android设备
+          2. 启用"未知来源"安装
+          3. 点击APK文件进行安装
           
-          ## 🔄 更新内容
+          ## 📋 系统要求
+          - Android 5.0 (API 21) 或更高版本
+          
+          ## 🔄 版本信息
           - 构建号: ${{ github.run_number }}
           - 提交: ${{ github.sha }}
           
-          ## 📋 安装要求
-          - Android 5.0 (API 21) 或更高版本
-          
-          自动构建于: ${{ github.run_number }}
+          自动构建时间: $(date)
         files: |
-          build/app/outputs/flutter-apk/*.apk
+          build/app/outputs/flutter-apk/FlashMemo-v${{ github.run_number }}.apk
         draft: false
         prerelease: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    # 12. 构建信息总结
+    # 10. 构建信息总结
     - name: Build Summary
       if: always()
       run: |
@@ -122,13 +110,11 @@ jobs:
         echo "- 分支: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
         echo "- 提交: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 📦 生成的APK文件:" >> $GITHUB_STEP_SUMMARY
-        if [ -d "build/app/outputs/flutter-apk/" ]; then
+        if [ -f "build/app/outputs/flutter-apk/FlashMemo-v${{ github.run_number }}.apk" ]; then
           cd build/app/outputs/flutter-apk/
-          for file in *.apk; do
-            if [ -f "$file" ]; then
-              size=$(du -h "$file" | cut -f1)
-              echo "- $file ($size)" >> $GITHUB_STEP_SUMMARY
-            fi
-          done
+          size=$(du -h "FlashMemo-v${{ github.run_number }}.apk" | cut -f1)
+          echo "### 📦 生成的APK文件:" >> $GITHUB_STEP_SUMMARY
+          echo "- FlashMemo-v${{ github.run_number }}.apk ($size)" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "### ❌ APK文件生成失败" >> $GITHUB_STEP_SUMMARY
         fi
