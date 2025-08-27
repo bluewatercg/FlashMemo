@@ -6,11 +6,6 @@ version: 1.0.0+1
 # 应用描述
 publish_to: 'none' # 防止意外发布到pub.dev
 
-# 构建配置
-flutter:
-  # ... existing code ...
-  generate: true # 启用代码生成
-
 environment:
   sdk: '>=3.0.0 <4.0.0'
 
@@ -56,6 +51,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  generate: true # 启用代码生成
   
   assets:
     - assets/images/
